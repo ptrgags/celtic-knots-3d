@@ -1,7 +1,9 @@
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::fs::File;
 
 use crate::primitives::{Vertex, Face};
+use Face::{Triangle, Quad};
+use crate::cube_rotations::CubeRotation;
 
 pub struct Mesh {
     vertices: Vec<Vertex>,
@@ -86,5 +88,50 @@ impl Mesh {
 
         // 1-indexed values -> 0-indexed values
         vertex - 1
+    }
+
+    pub fn rotate(&self, rotation: &CubeRotation) -> Self {
+        let rotated_vertices: Vec<Vertex> = self.vertices.iter().map(|v| {
+            rotation * v
+        }).collect();
+
+        Self {
+            vertices: rotated_vertices,
+            faces: self.faces.clone()
+        }
+    }
+
+    pub fn add_geometry(&mut self, other: &Self) {
+        let n = self.vertices.len();
+            
+        self.vertices.extend_from_slice(&other.vertices[..]);
+        
+        for face in other.faces.iter() {
+            let new_face = match face {
+                Quad([v1, v2, v3, v4]) => Quad([v1 + n, v2 + n, v3 + n, v4 + n]),
+                Triangle([v1, v2, v3]) => Triangle([v1 + n, v2 + n, v3 + n])
+            };
+            self.faces.push(new_face);
+        }
+    }
+
+    pub fn save_obj_file(&self, fname: &str) {
+        let mut file = File::create(fname)
+            .expect("Could not open output OBJ file");
+
+        for Vertex([x, y, z]) in self.vertices.iter() {
+            let line = format!("v {} {} {}\n", x, y, z);
+            file.write_all(line.as_bytes()).expect("Could not write vertex");
+        }
+
+        for face in self.faces.iter() {
+            let line = match face {
+                Quad([v1, v2, v3, v4]) => format!(
+                    "f {} {} {} {}\n", v1 + 1, v2 + 1, v3 + 1, v4 + 1),
+                Triangle([v1, v2, v3]) => format!(
+                    "f {} {} {}\n", v1 + 1, v2 + 1, v3 + 1)
+            };
+            file.write_all(line.as_bytes()).expect("Could not write face");
+        }
     }
 }

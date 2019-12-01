@@ -1,4 +1,6 @@
 use std::fmt::{Debug, Formatter, Result};
+
+#[derive(Clone)]
 pub struct Vertex(pub [f32; 3]);
 
 impl Debug for Vertex {
@@ -8,6 +10,7 @@ impl Debug for Vertex {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum Face {
     Triangle([usize; 3]),
     Quad([usize; 4]), 
