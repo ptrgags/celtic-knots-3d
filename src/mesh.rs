@@ -101,6 +101,20 @@ impl Mesh {
         }
     }
 
+    pub fn translate(&self, translation: &[f32; 3]) -> Self {
+        let translated_vertices: Vec<Vertex> = self.vertices.iter().map(|v| {
+            let [dx, dy, dz] = translation;
+            let Vertex([x, y, z]) = v;
+
+            Vertex([x + dx, y + dy, z + dz])
+        }).collect();
+            
+        Self {
+            vertices: translated_vertices,
+            faces: self.faces.clone()
+        }
+    }
+
     pub fn add_geometry(&mut self, other: &Self) {
         let n = self.vertices.len();
             
