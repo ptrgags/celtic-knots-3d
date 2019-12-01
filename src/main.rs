@@ -29,6 +29,15 @@ fn is_twist(i: u32, j: u32, k: u32) -> bool {
     parities == (0, 0, 1) || parities == (1, 1, 0)
 }
 
+fn twist_rotation(k: u32) -> CubeRotation {
+    let layer_parity = k % 2;
+    if layer_parity == 0 {
+        CubeRotation::rx()
+    } else {
+        CubeRotation::identity()
+    }
+}
+
 fn main() {
     const N: u32 = 7;
     const M: u32 = 11;
@@ -40,9 +49,11 @@ fn main() {
         for j in 0..M {
             for k in 0..P {
                 if is_twist(i, j, k) {
-                    let twist_cell = twist_tile.translate(
-                        &[i as f32, j as f32, k as f32]);
-                    grid.add_geometry(&twist_cell);
+                    let rotation = twist_rotation(k);
+                    let transformed = twist_tile
+                        .rotate(&rotation)
+                        .translate(&[i as f32, j as f32, k as f32]);
+                    grid.add_geometry(&transformed);
                 }
             }
         }
