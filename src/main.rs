@@ -1,3 +1,6 @@
+mod mesh;
+use mesh::Mesh;
+
 fn main() {
-    println!("Hello, world!");
+    let twist = Mesh::from_obj_file("data/basic/one_twist.obj");
 }
