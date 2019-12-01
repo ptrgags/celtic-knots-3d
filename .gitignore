@@ -1,4 +1,5 @@
 *.obj
+!data/**/*.obj
 
 
 #Added by cargo
