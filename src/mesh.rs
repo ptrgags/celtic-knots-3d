@@ -1,12 +1,7 @@
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 
-pub struct Vertex([f32; 3]);
-
-pub enum Face {
-    Triangle([usize; 3]),
-    Quad([usize; 4]), 
-}
+use crate::primitives::{Vertex, Face};
 
 pub struct Mesh {
     vertices: Vec<Vertex>,
