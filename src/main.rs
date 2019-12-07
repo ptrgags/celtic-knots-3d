@@ -23,6 +23,28 @@ fn make_quad_twist() -> Mesh {
     result
 }
 
+fn make_connector() -> Mesh {
+    let corner = Mesh::from_obj_file("data/basic/one_corner.obj");
+    let rx = CubeRotation::rx();
+    let rx2 = &rx * &rx;
+    let rz = CubeRotation::rz();
+    let rz2 = &rz * &rz;
+
+    let mut result = Mesh::new();
+    result.add_geometry(&corner);
+
+    let one_rotated = corner.rotate(&rx);
+    result.add_geometry(&one_rotated);
+
+    let two_rotated = result.rotate(&rx2);
+    result.add_geometry(&two_rotated);
+
+    let four_rotated = result.rotate(&rz2);
+    result.add_geometry(&four_rotated);
+
+    result
+}
+
 fn make_end_cap() -> Mesh {
     Mesh::from_obj_file("data/basic/end_cap.obj")
 }
@@ -93,22 +115,37 @@ fn orient_twist_cell(cell_id: CellID) -> Mesh {
     transformed
 }
 
-fn select_twist_cell(cell_id: CellID) -> Mesh {
+fn generate_twist_cell(cell_id: CellID) -> Mesh {
     orient_twist_cell(cell_id)
 }
 
-fn generate_cell(cell_id: CellID) -> Option<Mesh> {
-    if is_twist(cell_id) {
-        Some(select_twist_cell(cell_id))
-    } else {
-        None
+fn generate_connector(cell_id: CellID, rotation: CubeRotation) -> Mesh {
+    let CellID(i, j, k) = cell_id;
+    make_connector()
+        .rotate(&rotation)
+        .translate(&[i as f32, j as f32, k as f32])
+}
+
+fn generate_cell(cell_id: CellID) -> Mesh {
+    let CellID(i, j, k) = cell_id;
+    let parities = (i % 2, j % 2, k % 2);
+
+    match parities {
+        (1, 1, 0) | (0, 0, 1) => generate_twist_cell(cell_id),
+        (1, 0, 1) | (0, 1, 0) 
+            => generate_connector(cell_id, CubeRotation::identity()),
+        (0, 0, 0) | (1, 1, 1)
+            => generate_connector(cell_id, CubeRotation::ry()),
+        (1, 0, 0) | (0, 1, 1) 
+            => generate_connector(cell_id, CubeRotation::rz()),
+        _ => panic!("Invalid cell parity")
     }
 }
 
 fn main() {
-    const N: u32 = 7;
-    const M: u32 = 11;
-    const P: u32 = 13;
+    const N: u32 = 11;
+    const M: u32 = 7;
+    const P: u32 = 5;
     let twist_tile = make_quad_twist();
 
     let mut grid = Mesh::new();
@@ -116,12 +153,8 @@ fn main() {
         for j in 0..M {
             for k in 0..P {
                 let cell_id = CellID(i, j, k);
-                match generate_cell(cell_id) {
-                    Some(mesh) => {
-                        grid.add_geometry(&mesh);
-                    },
-                    None => {}
-                }
+                let mesh = generate_cell(cell_id);
+                grid.add_geometry(&mesh);
             }
         }
     }
