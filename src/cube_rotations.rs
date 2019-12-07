@@ -22,22 +22,56 @@ impl CubeRotation {
             [1, 1, 1])
     }
 
-    pub fn rz() -> Self {
-        Self::new(
-            [1, 0, 2],
-            [-1, 1, 1]) 
-    }
 
     pub fn rx() -> Self {
         Self::new(
             [0, 2, 1],
             [1, -1, 1])
     }
+
+    pub fn rx2() -> Self {
+        let rx = Self::rx();
+        &rx * &rx
+    }
+
+    pub fn rx3() -> Self {
+        let rx = Self::rx();
+        let rx2 = Self::rx2();
+        &rx * &rx2
+    }
     
     pub fn ry() -> Self {
         Self::new(
             [2, 1, 0],
             [1, 1, -1])
+    }
+
+    pub fn ry2() -> Self {
+        let ry = Self::ry();
+        &ry * &ry
+    }
+
+    pub fn ry3() -> Self {
+        let ry = Self::ry();
+        let ry2 = Self::ry2();
+        &ry * &ry2
+    }
+
+    pub fn rz() -> Self {
+        Self::new(
+            [1, 0, 2],
+            [-1, 1, 1]) 
+    }
+
+    pub fn rz2() -> Self {
+        let rz = Self::rz();
+        &rz * &rz
+    }
+
+    pub fn rz3() -> Self {
+        let rz = Self::rz();
+        let rz2 = Self::rz2();
+        &rz * &rz2
     }
 }
 

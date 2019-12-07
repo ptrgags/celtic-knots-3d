@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader, Write};
 use std::fs::File;
+use std::collections::{HashMap};
 
 use crate::primitives::{Vertex, Face};
 use Face::{Triangle, Quad};
@@ -129,6 +130,45 @@ impl Mesh {
         }
     }
 
+    /**
+     * Simplified clipping based on a plane that cuts through the origin and
+     * does not intersect the geometry. this is used for creating the
+     * connector end caps
+     */
+    pub fn simple_clip(&self, normal: [f32; 3]) -> Self {
+        // This program doesn't have a Vector class, but I added dot() to
+        // Vertex
+        let normal_vertex = Vertex(normal);
+
+        // Mark the vertices to keep and their new indices
+        let mut keepers: HashMap<usize, usize> = HashMap::new();
+        let mut new_vertices: Vec<Vertex> = Vec::new();
+        for (i, vertex) in self.vertices.iter().enumerate() {
+            let product = vertex.dot(&normal_vertex);
+            // If we're "inside" the boundary, keep the vertex but give
+            // it a new index
+            if product <= 0.0 {
+                new_vertices.push(vertex.clone());
+                keepers.insert(i, new_vertices.len() - 1);
+            }
+        }
+
+        // Go through the faces and see which ones to keep
+        let mut new_faces: Vec<Face> = Vec::new();
+        for face in self.faces.iter() {
+            let new_face = reindex_face(&face, &keepers);
+
+            if let Some(f) = new_face {
+                new_faces.push(f);
+            }
+        }
+
+        Self {
+            vertices: new_vertices,
+            faces: new_faces,
+        }
+    }
+
     pub fn save_obj_file(&self, fname: &str) {
         let mut file = File::create(fname)
             .expect("Could not open output OBJ file");
@@ -148,4 +188,32 @@ impl Mesh {
             file.write_all(line.as_bytes()).expect("Could not write face");
         }
     }
+}
+
+fn reindex_face(face: &Face, keepers: &HashMap<usize, usize>) -> Option<Face> {
+    let accept = match face {
+        Triangle(vertices) => accept_face(&vertices[..], &keepers),
+        Quad(vertices) => accept_face(&vertices[..], &keepers),
+    };
+
+    if !accept {
+        return None;
+    }
+
+    match face {
+        Triangle([v1, v2, v3]) 
+            => Some(Triangle([keepers[v1], keepers[v2], keepers[v3]])),
+        Quad([v1, v2, v3, v4]) 
+            => Some(Quad([keepers[v1], keepers[v2], keepers[v3], keepers[v4]])),
+    }
+}
+
+fn accept_face(face_indices: &[usize], keepers: &HashMap<usize, usize>) -> bool {
+    for index in face_indices.iter() {
+        if let None = keepers.get(index) {
+            return false;
+        }
+    }
+
+    return true;
 }
