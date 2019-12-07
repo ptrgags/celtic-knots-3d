@@ -65,6 +65,10 @@ fn make_end_cap() -> Mesh {
     Mesh::from_obj_file("data/basic/end_cap.obj")
 }
 
+fn make_edge_cap() -> Mesh {
+    Mesh::from_obj_file("data/basic/one_edge.obj")
+}
+
 #[derive(Copy, Clone, Debug)]
 struct CellID(u32, u32, u32);
 
@@ -154,6 +158,13 @@ fn generate_end_cap(cell_id: CellID, rotation: CubeRotation) -> Mesh {
         .translate(&[i as f32, j as f32, k as f32])
 }
 
+fn generate_edge_cap(cell_id: CellID, rotation: CubeRotation) -> Mesh {
+    let CellID(i, j, k) = cell_id;
+    return make_edge_cap()
+        .rotate(&rotation)
+        .translate(&[i as f32, j as f32, k as f32])
+}
+
 fn generate_twist_cell(cell_id: CellID, bounds: Bounds) -> Mesh {
     let classification = classify_bounds(cell_id, bounds);
     use RangeComparison::{Min, Max, Between};
@@ -170,6 +181,14 @@ fn generate_twist_cell(cell_id: CellID, bounds: Bounds) -> Mesh {
             => generate_end_cap(cell_id, CubeRotation::ry2()),
         BoundsClassification(Between, Between, Max)
             => generate_end_cap(cell_id, CubeRotation::identity()),
+        BoundsClassification(Min, Min, Between)
+            => generate_edge_cap(cell_id, CubeRotation::identity()),
+        BoundsClassification(Min, Max, Between)
+            => generate_edge_cap(cell_id, CubeRotation::rz3()),
+        BoundsClassification(Max, Min, Between)
+            => generate_edge_cap(cell_id, CubeRotation::rz()),
+        BoundsClassification(Max, Max, Between)
+            => generate_edge_cap(cell_id, CubeRotation::rz2()),
         _ => orient_twist_cell(cell_id)
     }
 }
@@ -199,6 +218,7 @@ fn generate_connector_cell(
             => connector.simple_clip([0.0, 0.0, -1.0]),
         BoundsClassification(Between, Between, Max)
             => connector.simple_clip([0.0, 0.0, 1.0]),
+        // 12 edges
         BoundsClassification(Min, Between, Min) 
             => connector
                 .simple_clip([-1.0, 0.0, 0.0])
@@ -231,6 +251,23 @@ fn generate_connector_cell(
             => connector
                 .simple_clip([0.0, 1.0, 0.0])
                 .simple_clip([0.0, 0.0, 1.0]),
+        BoundsClassification(Min, Min, Between) 
+            => connector
+                .simple_clip([-1.0, 0.0, 0.0])
+                .simple_clip([0.0, -1.0, 0.0]),
+        BoundsClassification(Min, Max, Between) 
+            => connector
+                .simple_clip([-1.0, 0.0, 0.0])
+                .simple_clip([0.0, 1.0, 0.0]),
+        BoundsClassification(Max, Min, Between) 
+            => connector
+                .simple_clip([1.0, 0.0, 0.0])
+                .simple_clip([0.0, -1.0, 0.0]),
+        BoundsClassification(Max, Max, Between) 
+            => connector
+                .simple_clip([1.0, 0.0, 0.0])
+                .simple_clip([0.0, 1.0, 0.0]),
+        // 8 corners
         BoundsClassification(Min, Min, Min) 
             => connector
                 .simple_clip([-1.0, 0.0, 0.0])
