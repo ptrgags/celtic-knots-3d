@@ -1,6 +1,10 @@
+extern crate rand;
+
 mod primitives;
 mod mesh;
 mod cube_rotations;
+
+use rand::Rng;
 
 use mesh::Mesh;
 use cube_rotations::CubeRotation;
@@ -55,6 +59,21 @@ fn make_end_cap(tileset: &str) -> Mesh {
 
 fn make_edge_cap(tileset: &str) -> Mesh {
     Mesh::from_obj_file(&format_path(tileset, "one_edge"))
+}
+
+fn make_untwist(tileset: &str) -> Mesh {
+    let mut result = Mesh::from_obj_file(&format_path(tileset, "one_edge"));
+
+    let rz = CubeRotation::rz();
+    let rz2 = CubeRotation::rz2();
+
+    let rotated1 = result.rotate(&rz);
+    result.add_geometry(&rotated1);
+
+    let rotated2 = result.rotate(&rz2);
+    result.add_geometry(&rotated2);
+
+    result
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -121,8 +140,17 @@ fn twist_rotation(k: u32) -> CubeRotation {
     }
 }
 
-fn orient_twist_cell(tileset: &str, cell_id: CellID) -> Mesh {
-    let twist_tile =  make_quad_twist(tileset);
+fn orient_twist_cell(
+        tileset: &str, cell_id: CellID, enable_mirrors: bool) -> Mesh {
+    let mut rng = rand::thread_rng();
+
+    let twist_tile = if enable_mirrors && rng.gen::<u8>() < 200 {
+        make_untwist(tileset)
+    } else {
+        make_quad_twist(tileset)
+    };
+
+
     let CellID(i, j, k) = cell_id;
     let rotation = twist_rotation(k);
     let transformed = twist_tile
@@ -146,7 +174,9 @@ fn generate_edge_cap(tileset: &str, cell_id: CellID, rotation: CubeRotation) -> 
         .translate(&[i as f32, j as f32, k as f32])
 }
 
-fn generate_twist_cell(tileset: &str, cell_id: CellID, bounds: Bounds) -> Mesh {
+fn generate_twist_cell(
+        tileset: &str, cell_id: CellID, bounds: Bounds, enable_mirrors: bool) 
+        -> Mesh {
     let classification = classify_bounds(cell_id, bounds);
     use RangeComparison::{Min, Max, Between};
     match classification {
@@ -170,7 +200,7 @@ fn generate_twist_cell(tileset: &str, cell_id: CellID, bounds: Bounds) -> Mesh {
             => generate_edge_cap(tileset, cell_id, CubeRotation::rz()),
         BoundsClassification(Max, Max, Between)
             => generate_edge_cap(tileset, cell_id, CubeRotation::rz2()),
-        _ => orient_twist_cell(tileset, cell_id)
+        _ => orient_twist_cell(tileset, cell_id, enable_mirrors)
     }
 }
 
@@ -300,12 +330,15 @@ fn generate_connector_cell(
     clipped_connector.translate(&[i as f32, j as f32, k as f32]) 
 }
 
-fn generate_cell(tileset: &str, cell_id: CellID, bounds: Bounds) -> Mesh {
+fn generate_cell(
+        tileset: &str, cell_id: CellID, bounds: Bounds, enable_mirrors: bool) 
+        -> Mesh {
     let CellID(i, j, k) = cell_id;
     let parities = (i % 2, j % 2, k % 2);
 
     match parities {
-        (1, 1, 0) | (0, 0, 1) => generate_twist_cell(tileset, cell_id, bounds),
+        (1, 1, 0) | (0, 0, 1) 
+            => generate_twist_cell(tileset, cell_id, bounds, enable_mirrors),
         (1, 0, 1) | (0, 1, 0) 
             => generate_connector_cell(
                 tileset, cell_id, CubeRotation::identity(), bounds),
@@ -322,6 +355,7 @@ fn main() {
     const M: u32 = 5;
     const P: u32 = 5;
     const TILESET: &str = "sturdy";
+    const ENABLE_MIRRORS: bool = false;
     let bounds = Bounds::new(N, M, P);
 
     let mut grid = Mesh::new();
@@ -329,7 +363,7 @@ fn main() {
         for j in 0..M {
             for k in 0..P {
                 let cell_id = CellID(i, j, k);
-                let mesh = generate_cell(TILESET, cell_id, bounds);
+                let mesh = generate_cell(TILESET, cell_id, bounds, ENABLE_MIRRORS);
                 grid.add_geometry(&mesh);
             }
         }
