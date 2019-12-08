@@ -5,8 +5,12 @@ mod cube_rotations;
 use mesh::Mesh;
 use cube_rotations::CubeRotation;
 
-fn make_quad_twist() -> Mesh {
-    let twist = Mesh::from_obj_file("data/basic/one_twist.obj");
+fn format_path(tileset_name: &str, obj_name: &str) -> String {
+    format!("data/{}/{}.obj", tileset_name, obj_name)
+}
+
+fn make_quad_twist(tileset: &str) -> Mesh {
+    let twist = Mesh::from_obj_file(&format_path(tileset, "one_twist"));
 
     let rz = CubeRotation::rz();
     let twist2 = twist.rotate(&rz);
@@ -23,8 +27,8 @@ fn make_quad_twist() -> Mesh {
     result
 }
 
-fn make_connector() -> Mesh {
-    let corner = Mesh::from_obj_file("data/basic/one_corner.obj");
+fn make_connector(tileset: &str) -> Mesh {
+    let corner = Mesh::from_obj_file(&format_path(tileset, "one_corner"));
     let rx = CubeRotation::rx();
     let rx2 = &rx * &rx;
     let rz = CubeRotation::rz();
@@ -45,28 +49,12 @@ fn make_connector() -> Mesh {
     result
 }
 
-fn make_connector_cap(_rotation: CubeRotation) -> Mesh {
-    let rz = CubeRotation::rz();
-    let corner = Mesh::from_obj_file("data/basic/one_corner.obj");
-    let corner2 = corner.rotate(&rz);
-    let corner3 = corner2.rotate(&rz);
-    let corner4 = corner3.rotate(&rz);
-
-    let mut result = Mesh::new();
-    result.add_geometry(&corner);
-    result.add_geometry(&corner2);
-    result.add_geometry(&corner3);
-    result.add_geometry(&corner4);
-
-    result
+fn make_end_cap(tileset: &str) -> Mesh {
+    Mesh::from_obj_file(&format_path(tileset, "end_cap"))
 }
 
-fn make_end_cap() -> Mesh {
-    Mesh::from_obj_file("data/basic/end_cap.obj")
-}
-
-fn make_edge_cap() -> Mesh {
-    Mesh::from_obj_file("data/basic/one_edge.obj")
+fn make_edge_cap(tileset: &str) -> Mesh {
+    Mesh::from_obj_file(&format_path(tileset, "one_edge"))
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -124,13 +112,6 @@ fn classify_bounds(cell_id: CellID, bounds: Bounds) -> BoundsClassification {
     )
 }
 
-fn is_twist(cell_id: CellID) -> bool {
-    let CellID(i, j, k) = cell_id;
-    let parities = (i % 2, j % 2, k % 2);
-
-    parities == (0, 0, 1) || parities == (1, 1, 0)
-}
-
 fn twist_rotation(k: u32) -> CubeRotation {
     let layer_parity = k % 2;
     if layer_parity == 0 {
@@ -140,8 +121,8 @@ fn twist_rotation(k: u32) -> CubeRotation {
     }
 }
 
-fn orient_twist_cell(cell_id: CellID) -> Mesh {
-    let twist_tile =  make_quad_twist();
+fn orient_twist_cell(tileset: &str, cell_id: CellID) -> Mesh {
+    let twist_tile =  make_quad_twist(tileset);
     let CellID(i, j, k) = cell_id;
     let rotation = twist_rotation(k);
     let transformed = twist_tile
@@ -151,57 +132,60 @@ fn orient_twist_cell(cell_id: CellID) -> Mesh {
     transformed
 }
 
-fn generate_end_cap(cell_id: CellID, rotation: CubeRotation) -> Mesh {
+fn generate_end_cap(tileset: &str, cell_id: CellID, rotation: CubeRotation) -> Mesh {
     let CellID(i, j, k) = cell_id;
-    return make_end_cap()
+    return make_end_cap(tileset)
         .rotate(&rotation)
         .translate(&[i as f32, j as f32, k as f32])
 }
 
-fn generate_edge_cap(cell_id: CellID, rotation: CubeRotation) -> Mesh {
+fn generate_edge_cap(tileset: &str, cell_id: CellID, rotation: CubeRotation) -> Mesh {
     let CellID(i, j, k) = cell_id;
-    return make_edge_cap()
+    return make_edge_cap(tileset)
         .rotate(&rotation)
         .translate(&[i as f32, j as f32, k as f32])
 }
 
-fn generate_twist_cell(cell_id: CellID, bounds: Bounds) -> Mesh {
+fn generate_twist_cell(tileset: &str, cell_id: CellID, bounds: Bounds) -> Mesh {
     let classification = classify_bounds(cell_id, bounds);
     use RangeComparison::{Min, Max, Between};
     match classification {
         BoundsClassification(Min, Between, Between) 
-            => generate_end_cap(cell_id, CubeRotation::ry3()),
+            => generate_end_cap(tileset, cell_id, CubeRotation::ry3()),
         BoundsClassification(Max, Between, Between)
-            => generate_end_cap(cell_id, CubeRotation::ry()),
+            => generate_end_cap(tileset, cell_id, CubeRotation::ry()),
         BoundsClassification(Between, Min, Between)
-            => generate_end_cap(cell_id, CubeRotation::rx()),
+            => generate_end_cap(tileset, cell_id, CubeRotation::rx()),
         BoundsClassification(Between, Max, Between)
-            => generate_end_cap(cell_id, CubeRotation::rx3()),
+            => generate_end_cap(tileset, cell_id, CubeRotation::rx3()),
         BoundsClassification(Between, Between, Min)
-            => generate_end_cap(cell_id, CubeRotation::ry2()),
+            => generate_end_cap(tileset, cell_id, CubeRotation::ry2()),
         BoundsClassification(Between, Between, Max)
-            => generate_end_cap(cell_id, CubeRotation::identity()),
+            => generate_end_cap(tileset, cell_id, CubeRotation::identity()),
         BoundsClassification(Min, Min, Between)
-            => generate_edge_cap(cell_id, CubeRotation::identity()),
+            => generate_edge_cap(tileset, cell_id, CubeRotation::identity()),
         BoundsClassification(Min, Max, Between)
-            => generate_edge_cap(cell_id, CubeRotation::rz3()),
+            => generate_edge_cap(tileset, cell_id, CubeRotation::rz3()),
         BoundsClassification(Max, Min, Between)
-            => generate_edge_cap(cell_id, CubeRotation::rz()),
+            => generate_edge_cap(tileset, cell_id, CubeRotation::rz()),
         BoundsClassification(Max, Max, Between)
-            => generate_edge_cap(cell_id, CubeRotation::rz2()),
-        _ => orient_twist_cell(cell_id)
+            => generate_edge_cap(tileset, cell_id, CubeRotation::rz2()),
+        _ => orient_twist_cell(tileset, cell_id)
     }
 }
 
-fn generate_connector(cell_id: CellID, rotation: CubeRotation) -> Mesh {
-    make_connector()
+fn generate_connector(tileset: &str, rotation: CubeRotation) -> Mesh {
+    make_connector(tileset)
         .rotate(&rotation)
 }
 
 fn generate_connector_cell(
-        cell_id: CellID, rotation: CubeRotation, bounds: Bounds) -> Mesh {
+        tileset: &str,
+        cell_id: CellID, 
+        rotation: CubeRotation, 
+        bounds: Bounds) -> Mesh {
 
-    let connector = generate_connector(cell_id, rotation);
+    let connector = generate_connector(tileset, rotation);
 
     let classification = classify_bounds(cell_id, bounds);
     use RangeComparison::{Min, Max, Between};
@@ -316,28 +300,28 @@ fn generate_connector_cell(
     clipped_connector.translate(&[i as f32, j as f32, k as f32]) 
 }
 
-fn generate_cell(cell_id: CellID, bounds: Bounds) -> Mesh {
+fn generate_cell(tileset: &str, cell_id: CellID, bounds: Bounds) -> Mesh {
     let CellID(i, j, k) = cell_id;
     let parities = (i % 2, j % 2, k % 2);
 
     match parities {
-        (1, 1, 0) | (0, 0, 1) => generate_twist_cell(cell_id, bounds),
+        (1, 1, 0) | (0, 0, 1) => generate_twist_cell(tileset, cell_id, bounds),
         (1, 0, 1) | (0, 1, 0) 
             => generate_connector_cell(
-                cell_id, CubeRotation::identity(), bounds),
+                tileset, cell_id, CubeRotation::identity(), bounds),
         (0, 0, 0) | (1, 1, 1)
-            => generate_connector_cell(cell_id, CubeRotation::ry(), bounds),
+            => generate_connector_cell(tileset, cell_id, CubeRotation::ry(), bounds),
         (1, 0, 0) | (0, 1, 1) 
-            => generate_connector_cell(cell_id, CubeRotation::rz(), bounds),
+            => generate_connector_cell(tileset, cell_id, CubeRotation::rz(), bounds),
         _ => panic!("Invalid cell parity")
     }
 }
 
 fn main() {
-    const N: u32 = 11;
-    const M: u32 = 7;
+    const N: u32 = 5;
+    const M: u32 = 5;
     const P: u32 = 5;
-    let twist_tile = make_quad_twist();
+    const TILESET: &str = "sturdy";
     let bounds = Bounds::new(N, M, P);
 
     let mut grid = Mesh::new();
@@ -345,7 +329,7 @@ fn main() {
         for j in 0..M {
             for k in 0..P {
                 let cell_id = CellID(i, j, k);
-                let mesh = generate_cell(cell_id, bounds);
+                let mesh = generate_cell(TILESET, cell_id, bounds);
                 grid.add_geometry(&mesh);
             }
         }
